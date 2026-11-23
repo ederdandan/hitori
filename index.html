@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#E8E1D3" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Monólito: Ilhas & Sombras</title>
+
+  <!-- Manifesto PWA Dinâmico -->
+  <link id="pwa-manifest" rel="manifest" href="" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tipografia Editorial Japonesa & Monoespaçada -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Shippori+Mincho:wght@700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Tema 1 (Padrão): Ukiyo-e & Basalto (Xilogravura Japonesa & Pedra Vulcânica) */
+      --bg-outer: #E4DDD0;
+      --bg-outer-grad: #F5F1E8;
+      --surface-panel: #F3EFE6;
+      --surface-card: #E6DFD1;
+      --text-main: #1C2026;
+      --text-muted: #5C626E;
+      --border-main: #C7BEB0;
+      --accent-primary: #E11D48;
+      --accent-secondary: #0F766E;
+
+      /* Células do Hitori */
+      --cell-bg: #FCFBF8;
+      --cell-text: #1C2026;
+      --cell-border: #D2C9BA;
+      --monolith-bg: #1C2026;
+      --monolith-border: #0F1115;
+      --monolith-text: rgba(255, 255, 255, 0.16);
+      --circle-ring: #E11D48;
+      --circle-bg: rgba(225, 29, 72, 0.11);
+      --isolated-bg: rgba(245, 158, 11, 0.24);
+      --isolated-border: #D97706;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100dvh;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-outer);
+      color: var(--text-main);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    .font-serif-jp { font-family: 'Shippori Mincho', Georgia, serif; }
+    .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+
+    .outer-backdrop {
+      background-color: var(--bg-outer);
+      background-image: radial-gradient(circle at 50% 0%, var(--bg-outer-grad) 0%, var(--bg-outer) 92%);
+    }
+
+    .mono-panel {
+      background-color: var(--surface-panel);
+      border: 1.5px solid var(--border-main);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+    }
+
+    .mono-card {
+      background-color: var(--surface-card);
+      border: 1px solid var(--border-main);
+    }
+
+    .gold-avatar-ring {
+      border-color: #EAB308 !important;
+      box-shadow: 0 0 0 2px #854D0E, 0 0 14px rgba(234, 179, 8, 0.85);
+    }
+
+    /* Célula do Tabuleiro Hitori */
+    .hitori-cell {
+      position: relative;
+      background-color: var(--cell-bg);
+      color: var(--cell-text);
+      border: 1.5px solid var(--cell-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: none;
+      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .hitori-cell:active {
+      transform: scale(0.92);
+    }
+
+    /* Estado 1: Pintada (Monólito) */
+    .hitori-cell.state-painted {
+      background: linear-gradient(145deg, var(--monolith-bg) 0%, var(--monolith-border) 100%);
+      border-color: var(--monolith-border);
+      color: var(--monolith-text);
+      box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.14), 0 4px 10px rgba(0, 0, 0, 0.28);
+      transform: scale(0.96);
+    }
+
+    .hitori-cell.state-painted::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      pointer-events: none;
+    }
+
+    /* Estado 2: Circulada (Ilha Protegida) */
+    .hitori-cell.state-circled {
+      background-color: var(--circle-bg);
+      border-color: var(--circle-ring);
+    }
+
+    .hitori-cell.state-circled::before {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 999px;
+      border: 2.5px solid var(--circle-ring);
+      pointer-events: none;
+    }
+
+    /* Célula Trancada por Dica */
+    .hitori-cell.cell-locked {
+      box-shadow: inset 0 0 0 2px #EAB308;
+    }
+
+    /* Alertas Lógicos */
+    @keyframes conflictShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2.5px); }
+      75% { transform: translateX(2.5px); }
+    }
+    .cell-conflict {
+      outline: 2.5px solid #EF4444 !important;
+      outline-offset: -2px;
+      animation: conflictShake 0.3s ease;
+    }
+
+    .cell-isolated {
+      background-color: var(--isolated-bg) !important;
+      border-color: var(--isolated-border) !important;
+    }
+
+    /* Stickers Animados */
+    @keyframes stickerWiggle {
+      0%, 100% { transform: rotate(-4deg) scale(1); }
+      50% { transform: rotate(4deg) scale(1.06); }
+    }
+    @keyframes stickerFloatPop {
+      0% { transform: translate(-50%, -30%) scale(0.3) rotate(-14deg); opacity: 0; }
+      22% { transform: translate(-50%, -62%) scale(1.22) rotate(5deg); opacity: 1; }
+      80% { transform: translate(-50%, -94%) scale(1.04) rotate(-3deg); opacity: 1; }
+      100% { transform: translate(-50%, -125%) scale(0.85) rotate(0deg); opacity: 0; }
+    }
+    .placed-sticker {
+      position: absolute;
+      z-index: 25;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+      animation: stickerWiggle 2.2s ease-in-out infinite;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+    }
+    .sticker-reaction-fx {
+      position: fixed;
+      left: 50%;
+      top: 40%;
+      z-index: 60;
+      pointer-events: none;
+      animation: stickerFloatPop 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="outer-backdrop flex flex-col items-center">
+
+  <!-- =====================================================================
+       1. MODAL DE ONBOARDING & CREDENCIAL LOCAL (SAFESTORAGE + CÂMERA/GALERIA)
+       ===================================================================== -->
+  <div id="profile-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 sm:p-6 mono-panel max-h-[92dvh] overflow-y-auto">
+      <div class="flex items-start justify-between border-b pb-3 mb-4" style="border-color: var(--border-main);">
+        <div>
+          <span class="font-mono-num text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded text-white"
+            style="background: var(--accent-primary);">
+            Arquipélago Lógico
+          </span>
+          <h2 class="font-serif-jp text-2xl font-extrabold mt-1">Credencial do Explorador</h2>
+        </div>
+        <button id="btn-close-profile" type="button" class="hidden text-xl font-bold px-2 py-1 rounded hover:opacity-75">✕</button>
+      </div>
+
+      <!-- Estatísticas -->
+      <div class="grid grid-cols-3 gap-2 mb-4 p-2.5 rounded-xl mono-card text-center">
+        <div>
+          <div class="text-[10px] uppercase opacity-75">Ilhas Resolvidas</div>
+          <div id="stat-solved" class="font-serif-jp text-xl font-extrabold">0</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase opacity-75">Sequência</div>
+          <div id="stat-streak" class="font-serif-jp text-xl font-extrabold">0🔥</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase opacity-75">Moedas</div>
+          <div id="stat-coins" class="font-mono-num text-base font-bold mt-0.5">60 🪙</div>
+        </div>
+      </div>
+
+      <!-- Preview Avatar + Upload Galeria + Câmera -->
+      <div class="flex flex-col items-center mb-4">
+        <div id="profile-avatar-preview"
+          class="w-24 h-24 rounded-full border-4 overflow-hidden flex items-center justify-center shadow-lg"
+          style="border-color: var(--accent-primary); background: var(--surface-card);">
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-2 mt-3">
+          <label class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer mono-card flex items-center gap-1.5 active:scale-95 transition">
+            <span>🖼️</span> Galeria
+            <input id="input-photo-upload" type="file" accept="image/*" class="hidden" />
+          </label>
+          <button id="btn-start-camera" type="button"
+            class="px-3 py-1.5 rounded-xl text-xs font-bold mono-card flex items-center gap-1.5 active:scale-95 transition">
+            <span>📷</span> Câmera
+          </button>
+        </div>
+      </div>
+
+      <!-- Câmera Ao Vivo -->
+      <div id="camera-box" class="hidden mb-4 p-3 rounded-xl bg-black border" style="border-color: var(--border-main);">
+        <video id="camera-video" autoplay playsinline class="w-full h-44 object-cover rounded-lg bg-slate-950"></video>
+        <div class="flex gap-2 mt-2.5">
+          <button id="btn-snap-photo" type="button" class="flex-1 py-2 rounded-lg font-bold text-xs bg-emerald-600 text-white">
+            📸 Capturar Foto
+          </button>
+          <button id="btn-switch-camera" type="button" class="px-3 py-2 rounded-lg font-bold text-xs bg-slate-700 text-white" title="Alternar Câmera">
+            🔄
+          </button>
+          <button id="btn-cancel-camera" type="button" class="px-3 py-2 rounded-lg font-bold text-xs bg-rose-800 text-white">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Emblemas Vetoriais SVG -->
+      <div class="mb-4">
+        <label class="block text-xs font-bold uppercase mb-1.5 opacity-80">
+          Ou escolha um selo vetorial (6 + 3 VIP):
+        </label>
+        <div id="emblems-grid" class="grid grid-cols-5 gap-2"></div>
+      </div>
+
+      <!-- Apelido -->
+      <div class="mb-5">
+        <label for="input-player-name" class="block text-xs font-bold uppercase mb-1 opacity-80">
+          Seu Codinome
+        </label>
+        <input id="input-player-name" type="text" maxlength="20" placeholder="Ex: Explorador Eder"
+          class="w-full px-3.5 py-2.5 rounded-xl font-bold text-base mono-card focus:outline-none" />
+      </div>
+
+      <button id="btn-save-profile" type="button"
+        class="w-full py-3 rounded-xl font-serif-jp font-extrabold text-sm uppercase tracking-wider text-white shadow-lg active:scale-95 transition"
+        style="background: var(--accent-primary);">
+        Confirmar Perfil e Continuar
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       2. MODAL TUTORIAL INTERATIVO "COMO JOGAR HITORI" (4 ETAPAS)
+       ===================================================================== -->
+  <div id="tutorial-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 sm:p-6 mono-panel flex flex-col justify-between max-h-[90dvh] overflow-y-auto">
+      <div>
+        <div class="flex items-center justify-between border-b pb-3 mb-4" style="border-color: var(--border-main);">
+          <div>
+            <span id="tut-step-badge" class="font-mono-num text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded text-white"
+              style="background: var(--accent-secondary);">
+              Regra 1 de 4
+            </span>
+            <h3 id="tut-title" class="font-serif-jp text-xl sm:text-2xl font-extrabold mt-1">
+              Sem Números Repetidos
+            </h3>
+          </div>
+          <button id="btn-close-tutorial" type="button" class="text-lg font-bold px-2 py-1 rounded hover:opacity-75">✕</button>
+        </div>
+
+        <div id="tut-diagram" class="p-4 rounded-2xl mono-card mb-4 flex flex-col items-center justify-center min-h-[146px]"></div>
+        <p id="tut-desc" class="text-xs sm:text-sm leading-relaxed opacity-95 mb-5"></p>
+      </div>
+
+      <div>
+        <div id="tut-dots" class="flex justify-center gap-2 mb-4"></div>
+        <div class="flex items-center gap-2">
+          <button id="btn-tut-prev" type="button"
+            class="px-4 py-2.5 rounded-xl font-bold text-xs mono-card active:scale-95 transition">
+            ← Anterior
+          </button>
+          <button id="btn-tut-next" type="button"
+            class="flex-1 py-2.5 rounded-xl font-serif-jp font-extrabold text-xs sm:text-sm uppercase tracking-wider text-white shadow-lg active:scale-95 transition"
+            style="background: var(--accent-primary);">
+            Próximo →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       3. INTERFACE PRINCIPAL DO JOGO (PWA MOBILE-FIRST)
+       ===================================================================== -->
+  <div id="game-workspace" class="relative w-full max-w-xl flex-1 flex flex-col sm:my-3 sm:rounded-2xl overflow-hidden mono-panel">
+
+    <!-- CABEÇALHO SUPERIOR -->
+    <header class="px-3 py-2.5 border-b flex items-center justify-between gap-2"
+      style="border-color: var(--border-main); background: var(--surface-card);">
+      <button id="btn-open-profile" type="button" class="flex items-center gap-2 text-left min-w-0">
+        <div id="header-avatar" class="w-10 h-10 rounded-full border-2 overflow-hidden flex items-center justify-center shrink-0"
+          style="border-color: var(--accent-primary); background: var(--surface-panel);">
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1">
+            <span id="header-player-name" class="font-bold text-xs sm:text-sm truncate">Explorador</span>
+            <span class="text-[10px] underline opacity-70">perfil</span>
+          </div>
+          <div class="font-mono-num text-[11px] opacity-80 flex items-center gap-1.5">
+            <span>⏱️ <strong id="timer-display">00:00</strong></span>
+            <span>•</span>
+            <span>🔥 <strong id="header-streak">0</strong></span>
+          </div>
+        </div>
+      </button>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btn-open-store" type="button"
+          class="px-2.5 py-1.5 rounded-xl font-mono-num text-xs font-bold text-white flex items-center gap-1 shadow active:scale-95 transition"
+          style="background: var(--accent-primary);">
+          <span>🏪 Loja</span>
+          <span>•</span>
+          <span>🪙 <span id="header-coins">60</span></span>
+        </button>
+
+        <button id="btn-cycle-theme" type="button" title="Alternar Tema Visual"
+          class="p-1.5 rounded-xl text-sm mono-panel active:scale-95 transition">
+          🎨
+        </button>
+
+        <button id="btn-open-tutorial-header" type="button" title="Como Jogar"
+          class="w-8 h-8 rounded-xl font-mono-num text-xs font-extrabold mono-panel active:scale-95 transition">
+          ?
+        </button>
+
+        <button id="btn-open-settings" type="button" title="Ajustes"
+          class="p-1.5 rounded-xl text-sm mono-panel active:scale-95 transition">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- BARRA DE NÍVEIS, DESAFIO DIÁRIO & TEMA -->
+    <section class="px-3 py-2 border-b flex flex-wrap items-center justify-between gap-1.5 text-xs"
+      style="border-color: var(--border-main);">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <select id="difficulty-select" aria-label="Nível"
+          class="px-2.5 py-1.5 rounded-xl font-bold mono-card cursor-pointer">
+          <option value="easy">Fácil (5×5)</option>
+          <option value="medium" selected>Médio (7×7)</option>
+          <option value="hard">Difícil (9×9)</option>
+        </select>
+
+        <button id="btn-daily-challenge" type="button"
+          class="px-2.5 py-1.5 rounded-xl font-bold text-white active:scale-95 transition"
+          style="background: var(--accent-secondary);">
+          📅 Diário (2×🪙)
+        </button>
+
+        <button id="btn-new-puzzle" type="button" title="Novo Tabuleiro"
+          class="px-2.5 py-1.5 rounded-xl font-bold mono-card active:scale-95 transition">
+          🔄 Novo
+        </button>
+      </div>
+
+      <span id="active-theme-pill" class="px-2 py-1 rounded-lg text-[10px] font-bold mono-card opacity-90">
+        🏯 Ukiyo-e
+      </span>
+    </section>
+
+    <!-- PAINEL DE RADAR LÓGICO EM TEMPO REAL -->
+    <section class="px-3 py-2 border-b flex items-center justify-between gap-2 text-xs"
+      style="border-color: var(--border-main); background: var(--surface-card);">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="status-duplicates" class="px-2 py-0.5 rounded-md font-mono-num text-[11px] font-bold mono-panel">
+          🔢 Duplicatas: --
+        </span>
+        <span id="status-connectivity" class="px-2 py-0.5 rounded-md font-mono-num text-[11px] font-bold mono-panel">
+          🌊 Ilha: Única ✓
+        </span>
+      </div>
+
+      <span id="round-reward-badge" class="font-mono-num text-[10px] font-bold px-2 py-0.5 rounded text-white shrink-0"
+        style="background: var(--accent-primary);">
+        +35 🪙
+      </span>
+    </section>
+
+    <!-- TABULEIRO HITORI COM CONTADORES DE DUPLICATAS NAS BORDAS -->
+    <main class="flex-1 flex flex-col items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      <div id="hitori-board-wrapper" class="w-full max-w-[430px] aspect-square flex items-center justify-center"></div>
+
+      <div class="mt-2.5 text-[10px] opacity-80 text-center">
+        Toque: <strong>Neutra → 🗿 Monólito → ⭕ Protegida</strong> • Toque duplo: <strong>⭕ Direto</strong> • Segure: <strong>Limpar</strong>
+      </div>
+    </main>
+
+    <!-- BARRA DE CONTROLE TÁTIL: AUTO-PROTEGER, DESFAZER & LIMPAR -->
+    <section class="px-3 py-2 border-t flex items-center justify-between gap-2 text-xs"
+      style="border-color: var(--border-main); background: var(--surface-card);">
+      <button id="btn-toggle-autoprotect" type="button"
+        class="px-3 py-2 rounded-xl font-bold text-white flex items-center gap-1.5 active:scale-95 transition"
+        style="background: var(--accent-secondary);">
+        <span>🛡️</span> Auto-Proteger: <strong id="autoprotect-label">ON</strong>
+      </button>
+
+      <div class="flex items-center gap-1.5">
+        <button id="btn-undo-move" type="button"
+          class="px-3 py-2 rounded-xl font-bold mono-panel active:scale-95 transition">
+          ↩️ Desfazer
+        </button>
+        <button id="btn-reset-board" type="button"
+          class="px-3 py-2 rounded-xl font-bold mono-panel active:scale-95 transition">
+          🧹 Limpar
+        </button>
+      </div>
+    </section>
+
+    <!-- BARRA DE PODERES RÁPIDOS -->
+    <footer class="p-2.5 sm:p-3 border-t flex items-center justify-between gap-1.5 text-xs"
+      style="border-color: var(--border-main); background: var(--surface-panel);">
+      <button id="btn-power-hint" type="button"
+        class="flex-1 py-2 px-2 rounded-xl font-mono-num font-bold mono-card flex items-center justify-center gap-1 active:scale-95 transition">
+        <span>💡 Dica</span>
+        <span id="qty-hint" class="px-1.5 py-0.5 rounded text-white text-[10px]" style="background: var(--accent-primary);">15🪙</span>
+      </button>
+
+      <button id="btn-power-shield" type="button"
+        class="flex-1 py-2 px-2 rounded-xl font-mono-num font-bold mono-card flex items-center justify-center gap-1 active:scale-95 transition">
+        <span>🛡️ Proteger</span>
+        <span id="qty-shield" class="px-1.5 py-0.5 rounded text-white text-[10px]" style="background: var(--accent-primary);">20🪙</span>
+      </button>
+
+      <button id="btn-power-radar" type="button"
+        class="flex-1 py-2 px-2 rounded-xl font-mono-num font-bold mono-card flex items-center justify-center gap-1 active:scale-95 transition">
+        <span>🌊 Radar</span>
+        <span id="qty-radar" class="px-1.5 py-0.5 rounded text-white text-[10px]" style="background: var(--accent-primary);">10🪙</span>
+      </button>
+    </footer>
+
+    <!-- Camada de Stickers Colados -->
+    <div id="placed-stickers-layer" class="pointer-events-none absolute inset-0 overflow-hidden z-20"></div>
+
+    <!-- Botão Flutuante & Gaveta de Stickers Animados -->
+    <div class="fixed bottom-20 right-3 z-30 flex flex-col items-end gap-2">
+      <div id="sticker-drawer" class="hidden p-2.5 rounded-2xl mono-panel shadow-2xl max-w-[90vw]">
+        <div class="flex items-center justify-between gap-3 mb-2 px-1">
+          <span class="text-[10px] font-bold uppercase opacity-80">
+            Toque p/ comemorar ou arraste p/ colar
+          </span>
+          <button id="btn-clear-stickers" type="button" class="text-[10px] underline opacity-80">
+            Limpar
+          </button>
+        </div>
+        <div id="sticker-palette" class="flex flex-wrap gap-1.5 justify-center"></div>
+      </div>
+
+      <button id="btn-toggle-stickers" type="button"
+        class="px-3.5 py-2 rounded-full font-bold text-xs text-white shadow-xl border border-white/30 flex items-center gap-1 active:scale-95 transition"
+        style="background: var(--accent-primary);">
+        <span>🎭</span> Stickers
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       4. MODAL DE AJUSTES
+       ===================================================================== -->
+  <div id="settings-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 mono-panel space-y-4">
+      <div class="flex items-center justify-between border-b pb-2.5" style="border-color: var(--border-main);">
+        <div>
+          <span class="text-[10px] uppercase tracking-widest opacity-75">Preferências & Regras</span>
+          <h3 class="font-serif-jp text-2xl font-extrabold">Ajustes do Monólito</h3>
+        </div>
+        <button id="btn-close-settings" type="button" class="text-lg font-bold px-2 py-1">✕</button>
+      </div>
+
+      <button id="btn-settings-tutorial" type="button"
+        class="w-full py-3.5 px-4 rounded-xl font-serif-jp font-extrabold text-sm text-white shadow-lg flex items-center justify-center gap-2 active:scale-95 transition"
+        style="background: var(--accent-secondary);">
+        <span>📖 Ver Tutorial: Como Jogar Hitori</span>
+      </button>
+
+      <div class="space-y-2.5 text-xs sm:text-sm">
+        <div class="p-3 rounded-xl mono-card flex items-center justify-between">
+          <div>
+            <div class="font-bold">🔊 Sons de Pedra & Água</div>
+            <div class="text-xs opacity-75">Efeitos táteis ao esculpir monólitos</div>
+          </div>
+          <button id="btn-settings-audio" type="button"
+            class="px-3 py-1.5 rounded-lg font-mono-num font-bold text-xs text-white"
+            style="background: var(--accent-primary);">
+            ATIVADO
+          </button>
+        </div>
+
+        <div class="p-3 rounded-xl mono-card flex items-center justify-between">
+          <div>
+            <div class="font-bold">🎨 Tema Visual Ativo</div>
+            <div id="settings-theme-name" class="text-xs opacity-75">🏯 Ukiyo-e & Basalto</div>
+          </div>
+          <button id="btn-settings-theme" type="button"
+            class="px-3 py-1.5 rounded-lg font-bold text-xs mono-panel active:scale-95 transition">
+            Trocar Tema
+          </button>
+        </div>
+
+        <div class="p-3 rounded-xl mono-card flex items-center justify-between">
+          <div>
+            <div class="font-bold">🪪 Credencial & Foto</div>
+            <div class="text-xs opacity-75">Editar nome, selo SVG ou foto da câmera</div>
+          </div>
+          <button id="btn-settings-profile" type="button"
+            class="px-3 py-1.5 rounded-lg font-bold text-xs mono-panel active:scale-95 transition">
+            Editar Perfil
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       5. MODAL LOJA DO ARQUIPÉLAGO (CONSUMÍVEIS & TEMAS)
+       ===================================================================== -->
+  <div id="store-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 mono-panel space-y-4 max-h-[90dvh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-2.5" style="border-color: var(--border-main);">
+        <div>
+          <span class="text-[10px] uppercase tracking-widest opacity-75">Artefatos & Temas</span>
+          <h3 class="font-serif-jp text-2xl font-extrabold">Loja do Monólito</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded-lg font-mono-num text-xs font-bold text-white" style="background: var(--accent-primary);">
+            🪙 <span id="store-balance">60</span>
+          </span>
+          <button id="btn-close-store" type="button" class="text-lg font-bold px-2 py-1">✕</button>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-bold uppercase opacity-80 mb-2">🎒 Poderes Consumíveis</h4>
+        <div id="store-consumables" class="space-y-2"></div>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-bold uppercase opacity-80 mb-2">🏯 Temas & Melhorias Permanentes</h4>
+        <div id="store-permanents" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificação -->
+  <div id="toast-box"
+    class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden max-w-sm w-[92%] px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-semibold"
+    style="background: var(--surface-card); color: var(--text-main); border-color: var(--accent-primary);">
+  </div>
+
+  <!-- =====================================================================
+       6. MOTOR DO HITORI (GERADOR DETERMINÍSTICO, BFS RADAR, GESTOS & LOJA)
+       ===================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ------------------------------------------------------------------
+         A. SAFESTORAGE (LOCALSTORAGE COM FALLBACK EM MEMÓRIA)
+         ------------------------------------------------------------------ */
+      const SafeStorage = (() => {
+        const mem = {};
+        return {
+          get(k) {
+            try { return window.localStorage.getItem(k); }
+            catch (_) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; }
+          },
+          set(k, v) {
+            try { window.localStorage.setItem(k, v); }
+            catch (_) { mem[k] = String(v); }
+          }
+        };
+      })();
+
+      /* ------------------------------------------------------------------
+         B. PWA MANIFEST & SERVICE WORKER OFFLINE
+         ------------------------------------------------------------------ */
+      function setupPWA() {
+        try {
+          const manifest = {
+            name: 'Monólito: Ilhas & Sombras',
+            short_name: 'Monólito Hitori',
+            start_url: '.',
+            display: 'standalone',
+            background_color: '#F3EFE6',
+            theme_color: '#E11D48',
+            icons: [{
+              src: 'data:image/svg+xml;utf8,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+                  <rect width="128" height="128" rx="28" fill="#1C2026"/>
+                  <rect x="18" y="18" width="40" height="40" rx="8" fill="#F3EFE6"/>
+                  <circle cx="38" cy="38" r="13" fill="none" stroke="#E11D48" stroke-width="5"/>
+                  <rect x="70" y="18" width="40" height="40" rx="8" fill="#0F1115" stroke="#475569" stroke-width="3"/>
+                  <rect x="18" y="70" width="40" height="40" rx="8" fill="#0F1115" stroke="#475569" stroke-width="3"/>
+                  <rect x="70" y="70" width="40" height="40" rx="8" fill="#F3EFE6"/>
+                  <circle cx="90" cy="90" r="13" fill="none" stroke="#E11D48" stroke-width="5"/>
+                </svg>`
+              ),
+              sizes: '128x128',
+              type: 'image/svg+xml'
+            }]
+          };
+          document.getElementById('pwa-manifest').href = URL.createObjectURL(
+            new Blob([JSON.stringify(manifest)], { type: 'application/json' })
+          );
+
+          if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+            const sw = `
+              const C = 'monolito-hitori-v1';
+              self.addEventListener('install', e => self.skipWaiting());
+              self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+              self.addEventListener('fetch', e => {
+                e.respondWith(
+                  caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+                    const copy = res.clone();
+                    caches.open(C).then(c => c.put(e.request, copy)).catch(() => {});
+                    return res;
+                  }).catch(() => r))
+                );
+              });
+            `;
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw], { type: 'application/javascript' }))).catch(() => {});
+          }
+        } catch (_) {}
+      }
+
+      /* ------------------------------------------------------------------
+         C. TEMAS, EMBLEMAS SVG, TUTORIAL (4 REGRAS), LOJA E STICKERS
+         ------------------------------------------------------------------ */
+      const KEY_PROFILE = 'monolito_hitori_profile_v1';
+      const KEY_ECONOMY = 'monolito_hitori_economy_v1';
+
+      const EMBLEMS = [
+        { id: 'monolith', vip: false, label: 'Monólito', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><rect x="18" y="10" width="28" height="44" rx="5" fill="#1C2026"/><circle cx="32" cy="32" r="9" fill="none" stroke="#E11D48" stroke-width="3.5"/></svg>` },
+        { id: 'wave', vip: false, label: 'Onda Ukiyo-e', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><path d="M10 40 Q22 18 36 32 T54 24" fill="none" stroke="#0F766E" stroke-width="5" stroke-linecap="round"/><circle cx="24" cy="24" r="5" fill="#E11D48"/></svg>` },
+        { id: 'torii', vip: false, label: 'Portal Torii', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><path d="M12 18 H52 M16 26 H48 M22 18 V50 M42 18 V50" stroke="#E11D48" stroke-width="5" stroke-linecap="round"/></svg>` },
+        { id: 'island', vip: false, label: 'Arquipélago', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><circle cx="22" cy="24" r="9" fill="#0F766E"/><circle cx="42" cy="38" r="11" fill="#1C2026"/><line x1="28" y1="29" x2="35" y2="34" stroke="#E11D48" stroke-width="3"/></svg>` },
+        { id: 'compass', vip: false, label: 'Bússola', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><circle cx="32" cy="32" r="21" fill="none" stroke="#1C2026" stroke-width="4"/><polygon points="32,16 38,32 32,48 26,32" fill="#E11D48"/></svg>` },
+        { id: 'seal', vip: false, label: 'Selo Hanko', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><rect x="14" y="14" width="36" height="36" rx="8" fill="none" stroke="#E11D48" stroke-width="4.5"/><path d="M24 24 H40 M32 24 V42" stroke="#E11D48" stroke-width="4"/></svg>` },
+        { id: 'vip_phoenix', vip: true, label: 'Fênix Escarlate (VIP)', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><circle cx="32" cy="32" r="22" fill="#450A0A" stroke="#FBBF24" stroke-width="3"/><text x="32" y="41" text-anchor="middle" font-size="25">🦅</text></svg>` },
+        { id: 'vip_leviathan', vip: true, label: 'Guardião Abissal (VIP)', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><circle cx="32" cy="32" r="22" fill="#082F49" stroke="#22D3EE" stroke-width="3"/><text x="32" y="41" text-anchor="middle" font-size="25">🐋</text></svg>` },
+        { id: 'vip_crown', vip: true, label: 'Coroa Imperial (VIP)', svg: `<svg viewBox="0 0 64 64" class="w-9 h-9"><polygon points="10,46 14,20 26,32 32,14 38,32 50,20 54,46" fill="#EAB308" stroke="#713F12" stroke-width="3"/></svg>` }
+      ];
+
+      const THEMES = {
+        ukiyoe: {
+          short: '🏯 Ukiyo-e',
+          name: '🏯 Ukiyo-e & Basalto',
+          vars: {
+            '--bg-outer': '#E4DDD0',
+            '--bg-outer-grad': '#F5F1E8',
+            '--surface-panel': '#F3EFE6',
+            '--surface-card': '#E6DFD1',
+            '--text-main': '#1C2026',
+            '--text-muted': '#5C626E',
+            '--border-main': '#C7BEB0',
+            '--accent-primary': '#E11D48',
+            '--accent-secondary': '#0F766E',
+            '--cell-bg': '#FCFBF8',
+            '--cell-text': '#1C2026',
+            '--cell-border': '#D2C9BA',
+            '--monolith-bg': '#1C2026',
+            '--monolith-border': '#0F1115',
+            '--monolith-text': 'rgba(255, 255, 255, 0.16)',
+            '--circle-ring': '#E11D48',
+            '--circle-bg': 'rgba(225, 29, 72, 0.11)',
+            '--isolated-bg': 'rgba(245, 158, 11, 0.24)',
+            '--isolated-border': '#D97706'
+          }
+        },
+        biolum: {
+          short: '🌊 Abissal',
+          name: '🌊 Arquipélago Bioluminescente',
+          vars: {
+            '--bg-outer': '#04070E',
+            '--bg-outer-grad': '#0B1324',
+            '--surface-panel': '#060B14',
+            '--surface-card': '#0E1729',
+            '--text-main': '#E0F2FE',
+            '--text-muted': '#7DD3FC',
+            '--border-main': '#1E293B',
+            '--accent-primary': '#06B6D4',
+            '--accent-secondary': '#10B981',
+            '--cell-bg': '#0F1B30',
+            '--cell-text': '#E0F2FE',
+            '--cell-border': '#1E3A5F',
+            '--monolith-bg': '#111827',
+            '--monolith-border': '#030712',
+            '--monolith-text': 'rgba(148, 163, 184, 0.14)',
+            '--circle-ring': '#22D3EE',
+            '--circle-bg': 'rgba(34, 211, 238, 0.14)',
+            '--isolated-bg': 'rgba(244, 63, 94, 0.26)',
+            '--isolated-border': '#F43F5E'
+          }
+        },
+        terracotta: {
+          short: '🏺 Terracota',
+          name: '🏺 Terracota & Areia',
+          vars: {
+            '--bg-outer': '#E2D4C1',
+            '--bg-outer-grad': '#F4ECE1',
+            '--surface-panel': '#EFE5D8',
+            '--surface-card': '#E3D5C3',
+            '--text-main': '#3E2415',
+            '--text-muted': '#7A543E',
+            '--border-main': '#C8B298',
+            '--accent-primary': '#B45309',
+            '--accent-secondary': '#15803D',
+            '--cell-bg': '#FAF5EE',
+            '--cell-text': '#3E2415',
+            '--cell-border': '#D1BEA6',
+            '--monolith-bg': '#7C2D12',
+            '--monolith-border': '#431407',
+            '--monolith-text': 'rgba(255, 247, 237, 0.18)',
+            '--circle-ring': '#15803D',
+            '--circle-bg': 'rgba(21, 128, 61, 0.12)',
+            '--isolated-bg': 'rgba(220, 38, 38, 0.22)',
+            '--isolated-border': '#DC2626'
+          }
+        },
+        monochrome: {
+          short: '⬜ Editorial',
+          name: '⬜ Monocromo Editorial',
+          vars: {
+            '--bg-outer': '#E4E4E7',
+            '--bg-outer-grad': '#FFFFFF',
+            '--surface-panel': '#FAFAFA',
+            '--surface-card': '#F4F4F5',
+            '--text-main': '#09090B',
+            '--text-muted': '#52525B',
+            '--border-main': '#D4D4D8',
+            '--accent-primary': '#D97706',
+            '--accent-secondary': '#18181B',
+            '--cell-bg': '#FFFFFF',
+            '--cell-text': '#09090B',
+            '--cell-border': '#D4D4D8',
+            '--monolith-bg': '#09090B',
+            '--monolith-border': '#000000',
+            '--monolith-text': 'rgba(255, 255, 255, 0.16)',
+            '--circle-ring': '#D97706',
+            '--circle-bg': 'rgba(217, 119, 6, 0.13)',
+            '--isolated-bg': 'rgba(239, 68, 68, 0.22)',
+            '--isolated-border': '#EF4444'
+          }
+        }
+      };
+
+      const TUTORIAL_STEPS = [
+        {
+          title: '1. Sem Números Repetidos',
+          desc: 'Em cada linha e em cada coluna, nenhum número pode aparecer mais de uma vez entre as casas claras. Toque nas casas repetidas para esculpir um Monólito escuro (🗿)!',
+          diagram: `
+            <div class="flex items-center gap-2 font-mono-num text-base font-extrabold">
+              <div class="w-11 h-11 rounded-lg bg-slate-900 text-white/30 flex items-center justify-center">3</div>
+              <div class="w-11 h-11 rounded-lg bg-white border-2 border-rose-600 flex items-center justify-center">1</div>
+              <div class="w-11 h-11 rounded-lg bg-white border-2 border-rose-600 flex items-center justify-center">3</div>
+              <div class="w-11 h-11 rounded-lg bg-white border-2 border-rose-600 flex items-center justify-center">2</div>
+            </div>
+            <div class="text-xs font-bold mt-2 opacity-85">Sobraram apenas 1, 3 e 2 sem repetição!</div>
+          `
+        },
+        {
+          title: '2. Monólitos Nunca se Tocam',
+          desc: 'Blocos escuros (Monólitos) nunca podem ficar vizinhos na horizontal ou na vertical (na diagonal pode!). Com "Auto-Proteger" ativo, o jogo circula automaticamente os 4 vizinhos seguros.',
+          diagram: `
+            <div class="grid grid-cols-3 gap-1.5 font-mono-num text-sm font-extrabold">
+              <div class="w-10 h-10 rounded-lg bg-white border flex items-center justify-center">4</div>
+              <div class="w-10 h-10 rounded-lg bg-rose-50 border-2 border-rose-600 flex items-center justify-center">2</div>
+              <div class="w-10 h-10 rounded-lg bg-slate-900 text-white/30 flex items-center justify-center">5</div>
+              <div class="w-10 h-10 rounded-lg bg-rose-50 border-2 border-rose-600 flex items-center justify-center">1</div>
+              <div class="w-10 h-10 rounded-lg bg-slate-900 text-white/30 flex items-center justify-center">3</div>
+              <div class="w-10 h-10 rounded-lg bg-rose-50 border-2 border-rose-600 flex items-center justify-center">4</div>
+            </div>
+            <div class="text-xs font-bold mt-2 opacity-85">Na diagonal é permitido; lado a lado nunca!</div>
+          `
+        },
+        {
+          title: '3. Ilha Única Conectada',
+          desc: 'Todas as casas claras restantes precisam formar uma única ilha conectada de ponta a ponta. Se você cercar alguma casa clara e isolá-la, nosso Radar acende um alerta âmbar na hora!',
+          diagram: `
+            <div class="flex items-center gap-3 text-xs font-bold">
+              <span class="px-3 py-2 rounded-xl bg-teal-100 text-teal-900 border border-teal-600">🌊 Ilha: Única ✓</span>
+              <span>vs</span>
+              <span class="px-3 py-2 rounded-xl bg-amber-100 text-amber-900 border border-amber-600">⚠️ Ilha Isolada!</span>
+            </div>
+          `
+        },
+        {
+          title: '4. Gestos Rápidos & Stickers',
+          desc: 'Deslize o dedo (swipe) para pintar várias casas em sequência, dê toque duplo para circular (⭕) direto ou segure para limpar. Ganhe moedas (🪙) para dicas, temas e stickers animados!',
+          diagram: `
+            <div class="flex flex-wrap justify-center gap-2 text-xs font-bold">
+              <span class="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-400">💡 Dica 15🪙</span>
+              <span class="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-400">🛡️ Proteger</span>
+              <span class="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-900 border border-rose-400">🎭 Stickers</span>
+            </div>
+          `
+        }
+      ];
+
+      const STORE_CONSUMABLES = [
+        { id: 'hint', title: '💡 Dica Célula', desc: 'Revela e tranca uma casa garantida (Monólito ou Ilha Protegida).', price: 15 },
+        { id: 'shield', title: '🛡️ Auto-Proteger Global', desc: 'Circula automaticamente todas as casas seguras ao redor dos monólitos.', price: 20 },
+        { id: 'radar', title: '🌊 Radar de Ilhas', desc: 'Destaca áreas isoladas e aponta uma conexão necessária no mapa.', price: 10 }
+      ];
+
+      const STORE_PERMANENTS = [
+        { id: 'theme_biolum', type: 'theme', themeKey: 'biolum', title: '🌊 Arquipélago Bioluminescente', desc: 'Visual OLED noturno profundo com ilhas em ciano fosforescente.', price: 40 },
+        { id: 'theme_terracotta', type: 'theme', themeKey: 'terracotta', title: '🏺 Terracota & Areia', desc: 'Paleta mediterrânea quente em argila queimada e verde-oliva.', price: 60 },
+        { id: 'theme_monochrome', type: 'theme', themeKey: 'monochrome', title: '⬜ Monocromo Editorial', desc: 'Contraste suíço puro em branco papel, nanquim e ouro.', price: 80 },
+        { id: 'vip_emblems', type: 'upgrade', title: '👑 Pacote Emblemas VIP', desc: 'Libera 3 selos exclusivos: Fênix Escarlate, Guardião e Coroa.', price: 50 },
+        { id: 'gold_frame', type: 'upgrade', title: '✨ Moldura Dourada', desc: 'Halo dourado brilhante ao redor do seu avatar.', price: 80 },
+        { id: 'double_coins', type: 'upgrade', title: '🍀 Amuleto 2× Moedas', desc: 'Dobra permanentemente todas as moedas ganhas nas partidas!', price: 100 }
+      ];
+
+      const STICKERS = [
+        { id: 'connected', emoji: '🌊', label: 'Conectado!', bg: '#E0F2FE', color: '#0369A1', border: '#0284C7' },
+        { id: 'monolith', emoji: '🗿', label: 'Monólito!', bg: '#F1F5F9', color: '#1E293B', border: '#475569' },
+        { id: 'flawless', emoji: '⚡', label: 'Impecável!', bg: '#FEF3C7', color: '#92400E', border: '#D97706' },
+        { id: 'clean', emoji: '🎯', label: 'Limpo!', bg: '#DCFCE7', color: '#15803D', border: '#16A34A' },
+        { id: 'master', emoji: '🏆', label: 'Mestre!', bg: '#FCE7F3', color: '#9D174D', border: '#DB2777' },
+        { id: 'zen', emoji: '⛩️', label: 'Harmonia!', bg: '#F3E8FF', color: '#6B21A8', border: '#9333EA' }
+      ];
+
+      /* ------------------------------------------------------------------
+         D. ÁUDIO PROCEDURAL DE PEDRA & ÁGUA (WEB AUDIO API)
+         ------------------------------------------------------------------ */
+      class HitoriAudio {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+        }
+        init() {
+          try {
+            if (!this.ctx) {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              if (AC) this.ctx = new AC();
+            }
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+          } catch (_) {}
+        }
+        play(type) {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+
+          if (type === 'stone') {
+            // Impacto grave de basalto esculpido
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(195, now);
+            osc.frequency.exponentialRampToValueAtTime(68, now + 0.085);
+            g.gain.setValueAtTime(0.18, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc.connect(g); g.connect(this.ctx.destination);
+            osc.start(now); osc.stop(now + 0.095);
+          } else if (type === 'water') {
+            // Gota cristalina ao circular ilha protegida
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(640, now);
+            osc.frequency.exponentialRampToValueAtTime(1120, now + 0.08);
+            g.gain.setValueAtTime(0.1, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc.connect(g); g.connect(this.ctx.destination);
+            osc.start(now); osc.stop(now + 0.095);
+          } else if (type === 'clear') {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(420, now);
+            osc.frequency.exponentialRampToValueAtTime(280, now + 0.05);
+            g.gain.setValueAtTime(0.07, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+            osc.connect(g); g.connect(this.ctx.destination);
+            osc.start(now); osc.stop(now + 0.06);
+          } else if (type === 'line') {
+            // Acorde suave ao zerar todas as duplicatas de uma linha/coluna
+            [523.25, 659.25].forEach((f, i) => {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(f, now + i * 0.055);
+              g.gain.setValueAtTime(0.08, now + i * 0.055);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.055 + 0.2);
+              osc.connect(g); g.connect(this.ctx.destination);
+              osc.start(now + i * 0.055); osc.stop(now + i * 0.055 + 0.22);
+            });
+          } else if (type === 'coin') {
+            [987.77, 1318.51].forEach((f, i) => {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(f, now + i * 0.07);
+              g.gain.setValueAtTime(0.09, now + i * 0.07);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.22);
+              osc.connect(g); g.connect(this.ctx.destination);
+              osc.start(now + i * 0.07); osc.stop(now + i * 0.07 + 0.24);
+            });
+          } else if (type === 'win') {
+            [392.00, 493.88, 587.33, 783.99].forEach((f, i) => {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(f, now + i * 0.075);
+              g.gain.setValueAtTime(0.11, now + i * 0.075);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.075 + 0.36);
+              osc.connect(g); g.connect(this.ctx.destination);
+              osc.start(now + i * 0.075); osc.stop(now + i * 0.075 + 0.38);
+            });
+          }
+        }
+      }
+      const audio = new HitoriAudio();
+
+      /* ------------------------------------------------------------------
+         E. ESTADO GLOBAL DO HITORI
+         ------------------------------------------------------------------ */
+      const CELL_NEUTRAL = 0;
+      const CELL_PAINTED = 1;
+      const CELL_CIRCLED = 2;
+
+      const state = {
+        profile: null,
+        economy: {
+          coins: 60,
+          streak: 0,
+          solvedCount: 0,
+          unlocked: ['theme_ukiyoe'],
+          activeTheme: 'ukiyoe',
+          inventory: { hint: 1, shield: 0, radar: 0 }
+        },
+        difficulty: 'medium', // 'easy' (5) | 'medium' (7) | 'hard' (9)
+        isDaily: false,
+        dailyIndex: 0,
+        size: 7,
+        numbers: [],      // NxN números 1..N
+        solution: [],     // NxN boolean (true = deve ser pintado/monólito)
+        cellStates: [],   // NxN (0=neutra, 1=pintada, 2=circulada)
+        lockedCells: [],  // NxN boolean (travada por dica)
+        history: [],      // Pilha para desfazer
+        autoProtect: true,
+        mistakesMade: 0,
+        celebratedLines: new Set(),
+        elapsedSec: 0,
+        timerId: null,
+        puzzleSolved: false,
+        tutorialStep: 0
+      };
+
+      /* ------------------------------------------------------------------
+         F. GERADOR DETERMINÍSTICO DE PUZZLES HITORI VÁLIDOS
+         ------------------------------------------------------------------ */
+      function createRng(seedStr) {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < seedStr.length; i++) {
+          h ^= seedStr.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return function () {
+          h += h << 13; h ^= h >>> 7; h += h << 3; h ^= h >>> 17; h += h << 5;
+          return ((h >>> 0) / 4294967296);
+        };
+      }
+
+      function shuffleWithRng(arr, rng) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(rng() * (i + 1));
+          const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+        }
+        return a;
+      }
+
+      // Verifica se todas as casas não-pintadas formam uma única componente conexa (BFS)
+      function isUnshadedConnected(shadedGrid, N) {
+        let startR = -1, startC = -1, totalWhite = 0;
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (!shadedGrid[r][c]) {
+              totalWhite++;
+              if (startR === -1) { startR = r; startC = c; }
+            }
+          }
+        }
+        if (totalWhite === 0) return false;
+        const vis = Array.from({ length: N }, () => Array(N).fill(false));
+        const q = [[startR, startC]];
+        vis[startR][startC] = true;
+        let reached = 0;
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        while (q.length > 0) {
+          const [r, c] = q.shift();
+          reached++;
+          for (const [dr, dc] of dirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < N && nc >= 0 && nc < N && !shadedGrid[nr][nc] && !vis[nr][nc]) {
+              vis[nr][nc] = true;
+              q.push([nr, nc]);
+            }
+          }
+        }
+        return reached === totalWhite;
+      }
+
+      function generateHitoriPuzzle() {
+        const N = state.isDaily ? 7 : (state.difficulty === 'easy' ? 5 : state.difficulty === 'medium' ? 7 : 9);
+        state.size = N;
+        state.history = [];
+        state.mistakesMade = 0;
+        state.celebratedLines = new Set();
+        state.puzzleSolved = false;
+
+        const today = new Date().toISOString().slice(0, 10);
+        const seed = state.isDaily
+          ? `HITORI_DAILY_${today}_${state.dailyIndex}`
+          : `HITORI_${state.difficulty}_${Date.now()}_${Math.random()}`;
+        const rng = createRng(seed);
+
+        // 1. Gera um Quadrado Latino embaralhado (garante 1..N únicos em linhas e colunas claras)
+        const baseNums = Array.from({ length: N }, (_, i) => i + 1);
+        const rowPerm = shuffleWithRng(Array.from({ length: N }, (_, i) => i), rng);
+        const colPerm = shuffleWithRng(Array.from({ length: N }, (_, i) => i), rng);
+        const symPerm = shuffleWithRng(baseNums, rng);
+
+        const numbers = Array.from({ length: N }, (_, r) =>
+          Array.from({ length: N }, (_, c) => symPerm[(rowPerm[r] + colPerm[c]) % N])
+        );
+
+        // 2. Escolhe uma máscara válida de monólitos (sem vizinhos ortogonais e sem isolar ilhas)
+        const shaded = Array.from({ length: N }, () => Array(N).fill(false));
+        const coords = [];
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) coords.push([r, c]);
+        }
+        const shuffledCoords = shuffleWithRng(coords, rng);
+        const targetShaded = Math.floor(N * N * (N === 5 ? 0.26 : N === 7 ? 0.28 : 0.30));
+        let countShaded = 0;
+
+        for (const [r, c] of shuffledCoords) {
+          if (countShaded >= targetShaded) break;
+          const adjShaded =
+            (r > 0 && shaded[r - 1][c]) ||
+            (r < N - 1 && shaded[r + 1][c]) ||
+            (c > 0 && shaded[r][c - 1]) ||
+            (c < N - 1 && shaded[r][c + 1]);
+          if (adjShaded) continue;
+
+          shaded[r][c] = true;
+          if (isUnshadedConnected(shaded, N)) {
+            countShaded++;
+          } else {
+            shaded[r][c] = false;
+          }
+        }
+
+        // 3. Substitui o número de cada casa pintada por um número já existente naquela linha ou coluna clara
+        // para criar os conflitos lógicos autênticos do Hitori!
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (!shaded[r][c]) continue;
+            const candidates = [];
+            for (let cc = 0; cc < N; cc++) {
+              if (cc !== c && !shaded[r][cc]) candidates.push(numbers[r][cc]);
+            }
+            for (let rr = 0; rr < N; rr++) {
+              if (rr !== r && !shaded[rr][c]) candidates.push(numbers[rr][c]);
+            }
+            if (candidates.length > 0) {
+              numbers[r][c] = candidates[Math.floor(rng() * candidates.length)];
+            }
+          }
+        }
+
+        state.numbers = numbers;
+        state.solution = shaded;
+        state.cellStates = Array.from({ length: N }, () => Array(N).fill(CELL_NEUTRAL));
+        state.lockedCells = Array.from({ length: N }, () => Array(N).fill(false));
+
+        const baseReward = state.isDaily ? 70 : (N === 5 ? 20 : N === 7 ? 35 : 55);
+        const mult = state.economy.unlocked.includes('double_coins') ? 2 : 1;
+        document.getElementById('round-reward-badge').textContent = `+${baseReward * mult} 🪙`;
+
+        if (state.timerId) clearInterval(state.timerId);
+        state.elapsedSec = 0;
+        updateTimerText();
+        state.timerId = setInterval(() => {
+          if (state.puzzleSolved) return;
+          state.elapsedSec++;
+          updateTimerText();
+        }, 1000);
+
+        renderBoard();
+      }
+
+      function updateTimerText() {
+        const m = String(Math.floor(state.elapsedSec / 60)).padStart(2, '0');
+        const s = String(state.elapsedSec % 60).padStart(2, '0');
+        document.getElementById('timer-display').textContent = `${m}:${s}`;
+      }
+
+      /* ------------------------------------------------------------------
+         G. ANÁLISE LÓGICA EM TEMPO REAL (DUPLICATAS, ADJACÊNCIA E RADAR BFS)
+         ------------------------------------------------------------------ */
+      function analyzeBoard() {
+        const N = state.size;
+        const conflicts = Array.from({ length: N }, () => Array(N).fill(false));
+        const isolated = Array.from({ length: N }, () => Array(N).fill(false));
+        const rowDupCounts = Array(N).fill(0);
+        const colDupCounts = Array(N).fill(0);
+        let totalDuplicateCells = 0;
+        let adjacentMonolithErrors = 0;
+
+        // 1. Verifica duplicatas entre células não-pintadas nas linhas
+        for (let r = 0; r < N; r++) {
+          const map = {};
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] === CELL_PAINTED) continue;
+            const num = state.numbers[r][c];
+            if (!map[num]) map[num] = [];
+            map[num].push(c);
+          }
+          Object.values(map).forEach(cols => {
+            if (cols.length > 1) {
+              rowDupCounts[r] += cols.length;
+              totalDuplicateCells += cols.length;
+              cols.forEach(c => { conflicts[r][c] = true; });
+            }
+          });
+        }
+
+        // 2. Verifica duplicatas entre células não-pintadas nas colunas
+        for (let c = 0; c < N; c++) {
+          const map = {};
+          for (let r = 0; r < N; r++) {
+            if (state.cellStates[r][c] === CELL_PAINTED) continue;
+            const num = state.numbers[r][c];
+            if (!map[num]) map[num] = [];
+            map[num].push(r);
+          }
+          Object.values(map).forEach(rows => {
+            if (rows.length > 1) {
+              colDupCounts[c] += rows.length;
+              totalDuplicateCells += rows.length;
+              rows.forEach(r => { conflicts[r][c] = true; });
+            }
+          });
+        }
+
+        // 3. Verifica monólitos adjacentes ortogonalmente
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] !== CELL_PAINTED) continue;
+            const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+            for (const [dr, dc] of dirs) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] === CELL_PAINTED) {
+                conflicts[r][c] = true;
+                adjacentMonolithErrors++;
+              }
+            }
+          }
+        }
+
+        // 4. Radar de Conectividade (BFS na maior ilha clara)
+        const vis = Array.from({ length: N }, () => Array(N).fill(false));
+        const components = [];
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] === CELL_PAINTED || vis[r][c]) continue;
+            const comp = [];
+            const q = [[r, c]];
+            vis[r][c] = true;
+            while (q.length > 0) {
+              const [cr, cc] = q.shift();
+              comp.push([cr, cc]);
+              for (const [dr, dc] of dirs) {
+                const nr = cr + dr, nc = cc + dc;
+                if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] !== CELL_PAINTED && !vis[nr][nc]) {
+                  vis[nr][nc] = true;
+                  q.push([nr, nc]);
+                }
+              }
+            }
+            components.push(comp);
+          }
+        }
+
+        let isConnected = true;
+        if (components.length > 1) {
+          isConnected = false;
+          components.sort((a, b) => b.length - a.length);
+          for (let i = 1; i < components.length; i++) {
+            components[i].forEach(([r, c]) => { isolated[r][c] = true; });
+          }
+        } else if (components.length === 0) {
+          isConnected = false;
+        }
+
+        return {
+          conflicts,
+          isolated,
+          rowDupCounts,
+          colDupCounts,
+          totalDuplicateCells,
+          adjacentMonolithErrors,
+          isConnected
+        };
+      }
+
+      /* ------------------------------------------------------------------
+         H. RENDERIZAÇÃO DO TABULEIRO E GESTOS TÁTEIS (SWIPE, DOUBLE-TAP, HOLD)
+         ------------------------------------------------------------------ */
+      function pushUndoSnapshot() {
+        state.history.push(state.cellStates.map(row => row.slice()));
+        if (state.history.length > 40) state.history.shift();
+      }
+
+      function applyCellState(r, c, newState, isSweep = false) {
+        if (state.puzzleSolved || state.lockedCells[r][c]) return;
+        const cur = state.cellStates[r][c];
+        if (cur === newState) return;
+
+        // Se estiver deslizando (swipe) para pintar, evita pintar vizinho ortogonal já pintado
+        if (isSweep && newState === CELL_PAINTED) {
+          const N = state.size;
+          const hasAdj =
+            (r > 0 && state.cellStates[r - 1][c] === CELL_PAINTED) ||
+            (r < N - 1 && state.cellStates[r + 1][c] === CELL_PAINTED) ||
+            (c > 0 && state.cellStates[r][c - 1] === CELL_PAINTED) ||
+            (c < N - 1 && state.cellStates[r][c + 1] === CELL_PAINTED);
+          if (hasAdj) return;
+        }
+
+        if (!isSweep) pushUndoSnapshot();
+        state.cellStates[r][c] = newState;
+
+        if (newState === CELL_PAINTED) {
+          audio.play('stone');
+          if (!state.solution[r][c]) state.mistakesMade++;
+
+          // Auto-Proteção inteligente dos 4 vizinhos ortogonais
+          if (state.autoProtect) {
+            const N = state.size;
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] === CELL_NEUTRAL) {
+                state.cellStates[nr][nc] = CELL_CIRCLED;
+              }
+            });
+          }
+        } else if (newState === CELL_CIRCLED) {
+          audio.play('water');
+        } else {
+          audio.play('clear');
+        }
+
+        renderBoard(true);
+      }
+
+      function renderBoard(checkCelebrations = false) {
+        const wrapper = document.getElementById('hitori-board-wrapper');
+        const N = state.size;
+        const analysis = analyzeBoard();
+
+        // Atualiza barra de status superior
+        const dupBadge = document.getElementById('status-duplicates');
+        dupBadge.textContent = analysis.totalDuplicateCells === 0
+          ? '🔢 Duplicatas: 0 ✓'
+          : `🔢 Duplicatas: ${analysis.totalDuplicateCells}`;
+
+        const connBadge = document.getElementById('status-connectivity');
+        if (analysis.adjacentMonolithErrors > 0) {
+          connBadge.textContent = '⚠️ Monólitos vizinhos!';
+        } else if (!analysis.isConnected) {
+          connBadge.textContent = '⚠️ Ilha Isolada!';
+        } else {
+          connBadge.textContent = '🌊 Ilha: Única ✓';
+        }
+
+        // Celebrações automáticas quando uma linha ou coluna zera suas duplicatas
+        if (checkCelebrations && !state.puzzleSolved) {
+          let newLineCleared = false;
+          for (let r = 0; r < N; r++) {
+            const key = `R_${r}`;
+            const hasPainted = state.cellStates[r].includes(CELL_PAINTED);
+            if (analysis.rowDupCounts[r] === 0 && hasPainted && !state.celebratedLines.has(key)) {
+              state.celebratedLines.add(key);
+              newLineCleared = true;
+            }
+          }
+          for (let c = 0; c < N; c++) {
+            const key = `C_${c}`;
+            const hasPainted = state.cellStates.some(row => row[c] === CELL_PAINTED);
+            if (analysis.colDupCounts[c] === 0 && hasPainted && !state.celebratedLines.has(key)) {
+              state.celebratedLines.add(key);
+              newLineCleared = true;
+            }
+          }
+          if (newLineCleared) {
+            audio.play('line');
+            launchReactionSticker(STICKERS[Math.floor(Math.random() * 4)]);
+          }
+        }
+
+        const fontSizeClass = N === 5 ? 'text-xl sm:text-2xl' : N === 7 ? 'text-base sm:text-xl' : 'text-sm sm:text-base';
+        const gapClass = N === 9 ? 'gap-1' : 'gap-1.5';
+
+        // Grid (N+1) x (N+1) com contadores de duplicatas nas bordas superior e esquerda
+        let gridHtml = `<div id="hitori-grid" class="w-full h-full grid ${gapClass}" style="grid-template-columns: 20px repeat(${N}, minmax(0, 1fr)); grid-template-rows: 20px repeat(${N}, minmax(0, 1fr));">`;
+
+        // Canto superior esquerdo
+        gridHtml += `<div class="flex items-center justify-center text-[10px] opacity-60 font-mono-num">#</div>`;
+
+        // Contadores das Colunas
+        for (let c = 0; c < N; c++) {
+          const d = analysis.colDupCounts[c];
+          gridHtml += `
+            <div class="flex items-center justify-center font-mono-num text-[10px] font-extrabold rounded ${d === 0 ? 'opacity-40' : ''}"
+              style="color: ${d === 0 ? 'var(--accent-secondary)' : 'var(--accent-primary)'};">
+              ${d === 0 ? '✓' : d}
+            </div>
+          `;
+        }
+
+        // Linhas (Contador + N Células)
+        for (let r = 0; r < N; r++) {
+          const rd = analysis.rowDupCounts[r];
+          gridHtml += `
+            <div class="flex items-center justify-center font-mono-num text-[10px] font-extrabold rounded ${rd === 0 ? 'opacity-40' : ''}"
+              style="color: ${rd === 0 ? 'var(--accent-secondary)' : 'var(--accent-primary)'};">
+              ${rd === 0 ? '✓' : rd}
+            </div>
+          `;
+
+          for (let c = 0; c < N; c++) {
+            const st = state.cellStates[r][c];
+            const stateClass = st === CELL_PAINTED ? 'state-painted' : st === CELL_CIRCLED ? 'state-circled' : '';
+            const lockClass = state.lockedCells[r][c] ? 'cell-locked' : '';
+            const conflictClass = analysis.conflicts[r][c] ? 'cell-conflict' : '';
+            const isolatedClass = analysis.isolated[r][c] ? 'cell-isolated' : '';
+
+            gridHtml += `
+              <button type="button"
+                class="hitori-cell ${fontSizeClass} ${stateClass} ${lockClass} ${conflictClass} ${isolatedClass}"
+                data-r="${r}" data-c="${c}">
+                ${state.numbers[r][c]}
+              </button>
+            `;
+          }
+        }
+
+        gridHtml += `</div>`;
+        wrapper.innerHTML = gridHtml;
+        attachBoardGestures();
+
+        // Verifica vitória completa
+        if (
+          !state.puzzleSolved &&
+          analysis.totalDuplicateCells === 0 &&
+          analysis.adjacentMonolithErrors === 0 &&
+          analysis.isConnected
+        ) {
+          handlePuzzleSolved();
+        }
+      }
+
+      function attachBoardGestures() {
+        const grid = document.getElementById('hitori-grid');
+        if (!grid) return;
+
+        let isSwiping = false;
+        let sweepTargetState = CELL_PAINTED;
+        let startCell = null;
+        let holdTimer = null;
+        let holdTriggered = false;
+        let lastTapKey = '';
+        let lastTapTime = 0;
+
+        grid.addEventListener('pointerdown', e => {
+          const cell = e.target.closest('.hitori-cell');
+          if (!cell || state.puzzleSolved) return;
+          const r = parseInt(cell.dataset.r, 10);
+          const c = parseInt(cell.dataset.c, 10);
+
+          startCell = { r, c };
+          isSwiping = false;
+          holdTriggered = false;
+          sweepTargetState = state.cellStates[r][c] === CELL_PAINTED ? CELL_NEUTRAL : CELL_PAINTED;
+
+          if (holdTimer) clearTimeout(holdTimer);
+          holdTimer = setTimeout(() => {
+            holdTriggered = true;
+            applyCellState(r, c, CELL_NEUTRAL, false);
+          }, 420);
+        });
+
+        grid.addEventListener('pointermove', e => {
+          if (!startCell) return;
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const cell = el && el.closest('.hitori-cell');
+          if (!cell) return;
+
+          const r = parseInt(cell.dataset.r, 10);
+          const c = parseInt(cell.dataset.c, 10);
+
+          if (!isSwiping && (r !== startCell.r || c !== startCell.c)) {
+            isSwiping = true;
+            if (holdTimer) clearTimeout(holdTimer);
+            pushUndoSnapshot();
+            applyCellState(startCell.r, startCell.c, sweepTargetState, true);
+          }
+
+          if (isSwiping) {
+            applyCellState(r, c, sweepTargetState, true);
+          }
+        });
+
+        ['pointerup', 'pointercancel'].forEach(ev => {
+          grid.addEventListener(ev, e => {
+            if (holdTimer) clearTimeout(holdTimer);
+            if (!startCell) return;
+
+            const { r, c } = startCell;
+            startCell = null;
+
+            if (isSwiping || holdTriggered) {
+              isSwiping = false;
+              holdTriggered = false;
+              return;
+            }
+
+            const now = Date.now();
+            const key = `${r},${c}`;
+
+            // Toque duplo rápido: alterna Circulada (Protegida) direto
+            if (key === lastTapKey && now - lastTapTime < 260) {
+              lastTapKey = '';
+              const nextDouble = state.cellStates[r][c] === CELL_CIRCLED ? CELL_NEUTRAL : CELL_CIRCLED;
+              applyCellState(r, c, nextDouble, false);
+              return;
+            }
+
+            lastTapKey = key;
+            lastTapTime = now;
+
+            // Ciclo padrão no toque simples: Neutra -> Pintada -> Circulada -> Neutra
+            const cur = state.cellStates[r][c];
+            const nextState = cur === CELL_NEUTRAL ? CELL_PAINTED : cur === CELL_PAINTED ? CELL_CIRCLED : CELL_NEUTRAL;
+            applyCellState(r, c, nextState, false);
+          });
+        });
+      }
+
+      /* ------------------------------------------------------------------
+         I. VITÓRIA & PODERES DA LOJA (DICA, AUTO-PROTEGER, RADAR)
+         ------------------------------------------------------------------ */
+      function handlePuzzleSolved() {
+        state.puzzleSolved = true;
+        if (state.timerId) clearInterval(state.timerId);
+        audio.play('win');
+
+        state.economy.solvedCount += 1;
+        state.economy.streak += 1;
+
+        const baseReward = state.isDaily ? 70 : (state.size === 5 ? 20 : state.size === 7 ? 35 : 55);
+        const streakBonus = Math.min(state.economy.streak * 4, 24);
+        const flawlessBonus = state.mistakesMade === 0 ? 15 : 0;
+        const mult = state.economy.unlocked.includes('double_coins') ? 2 : 1;
+        const earned = (baseReward + streakBonus + flawlessBonus) * mult;
+
+        state.economy.coins += earned;
+        saveEconomy();
+
+        launchReactionSticker(flawlessBonus > 0 ? STICKERS[2] : STICKERS[4]);
+        showToast(`🏆 Arquipélago Concluído! +${earned} 🪙 ${flawlessBonus > 0 ? '(Bônus Impecável!)' : ''}`);
+
+        setTimeout(() => {
+          if (state.isDaily) state.dailyIndex++;
+          generateHitoriPuzzle();
+        }, 1500);
+      }
+
+      function consumeOrBuyPower(itemId, price) {
+        if ((state.economy.inventory[itemId] || 0) > 0) {
+          state.economy.inventory[itemId]--;
+          saveEconomy();
+          return true;
+        }
+        if (state.economy.coins >= price) {
+          state.economy.coins -= price;
+          saveEconomy();
+          audio.play('coin');
+          return true;
+        }
+        showToast(`⚠️ Moedas insuficientes! Você precisa de ${price} 🪙.`);
+        return false;
+      }
+
+      function useCellHintPower() {
+        if (state.puzzleSolved) return;
+        const N = state.size;
+        const candidates = [];
+
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            const shouldBePainted = state.solution[r][c];
+            const cur = state.cellStates[r][c];
+            if (shouldBePainted && cur !== CELL_PAINTED) candidates.push([r, c, CELL_PAINTED]);
+            else if (!shouldBePainted && cur === CELL_PAINTED) candidates.push([r, c, CELL_CIRCLED]);
+            else if (!shouldBePainted && cur === CELL_NEUTRAL) candidates.push([r, c, CELL_CIRCLED]);
+          }
+        }
+
+        if (candidates.length === 0) return;
+        if (!consumeOrBuyPower('hint', 15)) return;
+
+        pushUndoSnapshot();
+        const [r, c, correctState] = candidates[Math.floor(Math.random() * candidates.length)];
+        state.cellStates[r][c] = correctState;
+        state.lockedCells[r][c] = true;
+
+        if (correctState === CELL_PAINTED && state.autoProtect) {
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] === CELL_NEUTRAL) {
+              state.cellStates[nr][nc] = CELL_CIRCLED;
+            }
+          });
+        }
+
+        audio.play(correctState === CELL_PAINTED ? 'stone' : 'water');
+        renderBoard(true);
+        showToast(`💡 Célula (${r + 1},${c + 1}) revelada e protegida!`);
+      }
+
+      function useGlobalShieldPower() {
+        if (state.puzzleSolved) return;
+        const N = state.size;
+        let changed = 0;
+
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] === CELL_PAINTED) {
+              [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => {
+                const nr = r + dr, nc = c + dc;
+                if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] === CELL_NEUTRAL) {
+                  changed++;
+                }
+              });
+            }
+          }
+        }
+
+        if (changed === 0) {
+          showToast('🛡️ Todos os vizinhos de monólitos já estão circulados!');
+          return;
+        }
+        if (!consumeOrBuyPower('shield', 20)) return;
+
+        pushUndoSnapshot();
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] === CELL_PAINTED) {
+              [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => {
+                const nr = r + dr, nc = c + dc;
+                if (nr >= 0 && nr < N && nc >= 0 && nc < N && state.cellStates[nr][nc] === CELL_NEUTRAL) {
+                  state.cellStates[nr][nc] = CELL_CIRCLED;
+                }
+              });
+            }
+          }
+        }
+
+        audio.play('water');
+        renderBoard(true);
+        showToast(`🛡️ ${changed} casas seguras circuladas automaticamente!`);
+      }
+
+      function useIslandRadarPower() {
+        if (state.puzzleSolved) return;
+        const N = state.size;
+        const analysis = analyzeBoard();
+
+        // Se houver monólito colocado errado isolando ilhas, corrige um deles; senão revela uma ponte segura
+        const wrongPainted = [];
+        const safeBridges = [];
+        for (let r = 0; r < N; r++) {
+          for (let c = 0; c < N; c++) {
+            if (state.cellStates[r][c] === CELL_PAINTED && !state.solution[r][c]) {
+              wrongPainted.push([r, c]);
+            } else if (!state.solution[r][c] && state.cellStates[r][c] === CELL_NEUTRAL) {
+              safeBridges.push([r, c]);
+            }
+          }
+        }
+
+        if (wrongPainted.length === 0 && safeBridges.length === 0) return;
+        if (!consumeOrBuyPower('radar', 10)) return;
+
+        pushUndoSnapshot();
+        if (wrongPainted.length > 0) {
+          const [r, c] = wrongPainted[0];
+          state.cellStates[r][c] = CELL_CIRCLED;
+          state.lockedCells[r][c] = true;
+          audio.play('water');
+          renderBoard(true);
+          showToast(`🌊 Radar: Monólito falso em (${r + 1},${c + 1}) restaurado como ponte da ilha!`);
+        } else {
+          const [r, c] = safeBridges[Math.floor(Math.random() * safeBridges.length)];
+          state.cellStates[r][c] = CELL_CIRCLED;
+          state.lockedCells[r][c] = true;
+          audio.play('water');
+          renderBoard(true);
+          showToast(`🌊 Radar: Ponte essencial da ilha marcada em (${r + 1},${c + 1})!`);
+        }
+
+        if (!analysis.isConnected) launchReactionSticker(STICKERS[0]);
+      }
+
+      /* ------------------------------------------------------------------
+         J. TUTORIAL INTERATIVO (4 ETAPAS)
+         ------------------------------------------------------------------ */
+      function openTutorialModal(stepIdx = 0) {
+        state.tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, stepIdx));
+        renderTutorialStep();
+        document.getElementById('tutorial-modal').classList.remove('hidden');
+      }
+
+      function renderTutorialStep() {
+        const idx = state.tutorialStep;
+        const step = TUTORIAL_STEPS[idx];
+        document.getElementById('tut-step-badge').textContent = `Regra ${idx + 1} de ${TUTORIAL_STEPS.length}`;
+        document.getElementById('tut-title').textContent = step.title;
+        document.getElementById('tut-diagram').innerHTML = step.diagram;
+        document.getElementById('tut-desc').textContent = step.desc;
+
+        const dots = document.getElementById('tut-dots');
+        dots.innerHTML = '';
+        TUTORIAL_STEPS.forEach((_, i) => {
+          const d = document.createElement('button');
+          d.type = 'button';
+          d.className = `h-2.5 rounded-full transition-all ${i === idx ? 'w-7' : 'w-2.5 opacity-40'}`;
+          d.style.background = i === idx ? 'var(--accent-primary)' : 'var(--text-main)';
+          d.addEventListener('click', () => openTutorialModal(i));
+          dots.appendChild(d);
+        });
+
+        document.getElementById('btn-tut-prev').style.visibility = idx === 0 ? 'hidden' : 'visible';
+        document.getElementById('btn-tut-next').textContent = idx === TUTORIAL_STEPS.length - 1 ? 'Começar a Jogar!' : 'Próximo →';
+      }
+
+      /* ------------------------------------------------------------------
+         K. STICKERS ANIMADOS (REAÇÕES & ARRASTE SOBRE O TABULEIRO)
+         ------------------------------------------------------------------ */
+      function launchReactionSticker(st) {
+        const fx = document.createElement('div');
+        fx.className = 'sticker-reaction-fx px-4 py-2 rounded-2xl font-bold text-base border-2 shadow-2xl';
+        fx.style.background = st.bg;
+        fx.style.color = st.color;
+        fx.style.borderColor = st.border;
+        fx.innerHTML = `${st.emoji} ${st.label}`;
+        document.body.appendChild(fx);
+        setTimeout(() => fx.remove(), 1300);
+      }
+
+      function setupStickers() {
+        const palette = document.getElementById('sticker-palette');
+        const layer = document.getElementById('placed-stickers-layer');
+        const workspace = document.getElementById('game-workspace');
+
+        STICKERS.forEach(st => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-bold border-2 shadow flex items-center gap-1 select-none touch-none active:scale-90 transition';
+          btn.style.background = st.bg;
+          btn.style.color = st.color;
+          btn.style.borderColor = st.border;
+          btn.innerHTML = `<span>${st.emoji}</span><span>${st.label}</span>`;
+
+          let sx = 0, sy = 0, dragging = false, ghost = null;
+
+          btn.addEventListener('pointerdown', e => {
+            sx = e.clientX; sy = e.clientY; dragging = false;
+            btn.setPointerCapture(e.pointerId);
+          });
+
+          btn.addEventListener('pointermove', e => {
+            if (!btn.hasPointerCapture(e.pointerId)) return;
+            if (Math.hypot(e.clientX - sx, e.clientY - sy) > 10 && !dragging) {
+              dragging = true;
+              ghost = document.createElement('div');
+              ghost.className = 'fixed z-50 pointer-events-none px-2.5 py-1 rounded-xl text-xs font-bold border-2 shadow-xl';
+              ghost.style.background = st.bg;
+              ghost.style.color = st.color;
+              ghost.style.borderColor = st.border;
+              ghost.innerHTML = `${st.emoji} ${st.label}`;
+              document.body.appendChild(ghost);
+            }
+            if (dragging && ghost) {
+              ghost.style.left = `${e.clientX - 34}px`;
+              ghost.style.top = `${e.clientY - 16}px`;
+            }
+          });
+
+          btn.addEventListener('pointerup', e => {
+            if (btn.hasPointerCapture(e.pointerId)) btn.releasePointerCapture(e.pointerId);
+            if (dragging && ghost) {
+              ghost.remove(); ghost = null;
+              const rect = workspace.getBoundingClientRect();
+              const rx = e.clientX - rect.left - 32;
+              const ry = e.clientY - rect.top - 16;
+              if (rx >= 0 && ry >= 0 && rx <= rect.width - 36 && ry <= rect.height - 20) {
+                const badge = document.createElement('div');
+                badge.className = 'placed-sticker pointer-events-auto px-2.5 py-1 rounded-xl text-xs font-bold border-2';
+                badge.style.left = `${rx}px`;
+                badge.style.top = `${ry}px`;
+                badge.style.background = st.bg;
+                badge.style.color = st.color;
+                badge.style.borderColor = st.border;
+                badge.title = 'Toque para remover';
+                badge.innerHTML = `${st.emoji} ${st.label}`;
+                badge.addEventListener('click', () => { audio.play('clear'); badge.remove(); });
+                layer.appendChild(badge);
+                audio.play('water');
+              }
+            } else {
+              launchReactionSticker(st);
+              audio.play('water');
+            }
+            dragging = false;
+          });
+
+          palette.appendChild(btn);
+        });
+      }
+
+      /* ------------------------------------------------------------------
+         L. PERFIL LOCAL, CÂMERA (128x128 JPEG 0.75), AJUSTES E LOJA
+         ------------------------------------------------------------------ */
+      let draftAvatar = EMBLEMS[0].svg;
+      let cameraStream = null;
+      let facingMode = 'user';
+      let isInitialOnboarding = false;
+
+      function saveEconomy() {
+        SafeStorage.set(KEY_ECONOMY, JSON.stringify(state.economy));
+        updateEconomyUI();
+      }
+
+      function renderAvatar(el, data) {
+        if (!el) return;
+        if (data && data.startsWith('data:image')) {
+          el.innerHTML = `<img src="${data}" alt="Avatar" class="w-full h-full object-cover" />`;
+        } else if (data && data.startsWith('<svg')) {
+          el.innerHTML = data;
+        } else {
+          el.innerHTML = `<span class="text-xl">🗿</span>`;
+        }
+      }
+
+      function renderHeaderProfile() {
+        const p = state.profile || { name: 'Explorador', avatar: EMBLEMS[0].svg };
+        document.getElementById('header-player-name').textContent = p.name;
+        const box = document.getElementById('header-avatar');
+        renderAvatar(box, p.avatar);
+        if (state.economy.unlocked.includes('gold_frame')) box.classList.add('gold-avatar-ring');
+        else box.classList.remove('gold-avatar-ring');
+      }
+
+      function updateEconomyUI() {
+        document.getElementById('header-coins').textContent = state.economy.coins;
+        document.getElementById('header-streak').textContent = state.economy.streak;
+        document.getElementById('store-balance').textContent = state.economy.coins;
+
+        const inv = state.economy.inventory;
+        document.getElementById('qty-hint').textContent = inv.hint > 0 ? `${inv.hint}×` : '15🪙';
+        document.getElementById('qty-shield').textContent = inv.shield > 0 ? `${inv.shield}×` : '20🪙';
+        document.getElementById('qty-radar').textContent = inv.radar > 0 ? `${inv.radar}×` : '10🪙';
+
+        const activeT = THEMES[state.economy.activeTheme] || THEMES.ukiyoe;
+        document.getElementById('active-theme-pill').textContent = activeT.short;
+        document.getElementById('settings-theme-name').textContent = activeT.name;
+      }
+
+      function applyTheme(key) {
+        const t = THEMES[key] || THEMES.ukiyoe;
+        state.economy.activeTheme = key;
+        Object.entries(t.vars).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+      }
+
+      function cycleUnlockedTheme() {
+        const keys = ['ukiyoe', 'biolum', 'terracotta', 'monochrome'].filter(
+          k => k === 'ukiyoe' || state.economy.unlocked.includes(`theme_${k}`)
+        );
+        if (keys.length <= 1) {
+          openStoreModal();
+          showToast('🎨 Desbloqueie novos temas na Loja usando suas moedas!');
+          return;
+        }
+        const curIdx = keys.indexOf(state.economy.activeTheme);
+        const nextKey = keys[(curIdx + 1) % keys.length];
+        applyTheme(nextKey);
+        saveEconomy();
+        audio.play('water');
+        showToast(`Tema alterado: ${THEMES[nextKey].name}`);
+      }
+
+      function openProfileModal(firstRun = false) {
+        isInitialOnboarding = firstRun;
+        const grid = document.getElementById('emblems-grid');
+        grid.innerHTML = '';
+        const hasVip = state.economy.unlocked.includes('vip_emblems');
+
+        EMBLEMS.forEach(emb => {
+          const locked = emb.vip && !hasVip;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `relative h-12 rounded-xl mono-card flex items-center justify-center active:scale-90 transition ${locked ? 'opacity-50' : ''}`;
+          btn.innerHTML = emb.svg + (locked ? `<span class="absolute -top-1 -right-1 text-[10px]">🔒</span>` : '');
+          btn.addEventListener('click', () => {
+            if (locked) {
+              showToast('🔒 Selo VIP! Desbloqueie o Pacote Emblemas VIP na Loja.');
+              return;
+            }
+            draftAvatar = emb.svg;
+            renderAvatar(document.getElementById('profile-avatar-preview'), draftAvatar);
+          });
+          grid.appendChild(btn);
+        });
+
+        document.getElementById('stat-solved').textContent = state.economy.solvedCount;
+        document.getElementById('stat-streak').textContent = `${state.economy.streak}🔥`;
+        document.getElementById('stat-coins').textContent = `${state.economy.coins} 🪙`;
+
+        const closeBtn = document.getElementById('btn-close-profile');
+        if (firstRun) {
+          closeBtn.classList.add('hidden');
+          draftAvatar = EMBLEMS[0].svg;
+          document.getElementById('input-player-name').value = '';
+        } else {
+          closeBtn.classList.remove('hidden');
+          draftAvatar = (state.profile && state.profile.avatar) || EMBLEMS[0].svg;
+          document.getElementById('input-player-name').value = (state.profile && state.profile.name) || '';
+        }
+
+        renderAvatar(document.getElementById('profile-avatar-preview'), draftAvatar);
+        document.getElementById('profile-modal').classList.remove('hidden');
+      }
+
+      async function startCamera() {
+        stopCamera();
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+          const vid = document.getElementById('camera-video');
+          vid.srcObject = cameraStream;
+          document.getElementById('camera-box').classList.remove('hidden');
+        } catch (_) {
+          showToast('Câmera indisponível neste dispositivo ou navegador.');
+        }
+      }
+
+      function stopCamera() {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(t => t.stop());
+          cameraStream = null;
+        }
+        document.getElementById('camera-box').classList.add('hidden');
+      }
+
+      function compressSquareAvatar(src, isVideo = false) {
+        return new Promise(resolve => {
+          const canvas = document.createElement('canvas');
+          const s = 128;
+          canvas.width = s; canvas.height = s;
+          const ctx = canvas.getContext('2d');
+          if (isVideo) {
+            const vw = src.videoWidth || 320, vh = src.videoHeight || 320;
+            const side = Math.min(vw, vh);
+            ctx.drawImage(src, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, s, s);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          } else {
+            const reader = new FileReader();
+            reader.onload = ev => {
+              const img = new Image();
+              img.onload = () => {
+                const side = Math.min(img.width, img.height);
+                ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, s, s);
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
+              };
+              img.src = ev.target.result;
+            };
+            reader.readAsDataURL(src);
+          }
+        });
+      }
+
+      function openStoreModal() {
+        const consBox = document.getElementById('store-consumables');
+        consBox.innerHTML = '';
+        STORE_CONSUMABLES.forEach(item => {
+          const qty = state.economy.inventory[item.id] || 0;
+          const card = document.createElement('div');
+          card.className = 'p-3 rounded-xl mono-card flex items-center justify-between gap-3';
+          card.innerHTML = `
+            <div class="min-w-0">
+              <div class="font-bold text-sm flex items-center gap-1.5">
+                <span>${item.title}</span>
+                <span class="px-1.5 py-0.5 rounded font-mono-num text-[10px] bg-black/15">Posse: ${qty}</span>
+              </div>
+              <div class="text-xs opacity-80">${item.desc}</div>
+            </div>
+            <button type="button" class="shrink-0 px-3 py-2 rounded-xl font-mono-num text-xs font-bold text-white active:scale-95 transition"
+              style="background: var(--accent-primary);">
+              +1 (${item.price} 🪙)
+            </button>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            if (state.economy.coins < item.price) {
+              showToast(`⚠️ Você precisa de ${item.price} 🪙 para comprar este poder.`);
+              return;
+            }
+            state.economy.coins -= item.price;
+            state.economy.inventory[item.id] = (state.economy.inventory[item.id] || 0) + 1;
+            audio.play('coin');
+            saveEconomy();
+            openStoreModal();
+            showToast(`🎒 +1 ${item.title} adicionado!`);
+          });
+          consBox.appendChild(card);
+        });
+
+        const permBox = document.getElementById('store-permanents');
+        permBox.innerHTML = '';
+        STORE_PERMANENTS.forEach(item => {
+          const owned = state.economy.unlocked.includes(item.id);
+          const active = item.type === 'theme' && state.economy.activeTheme === item.themeKey;
+          const card = document.createElement('div');
+          card.className = 'p-3 rounded-xl mono-card flex items-center justify-between gap-3';
+          card.innerHTML = `
+            <div class="min-w-0">
+              <div class="font-bold text-sm">${item.title}</div>
+              <div class="text-xs opacity-80">${item.desc}</div>
+            </div>
+            <button type="button" class="shrink-0 px-3 py-2 rounded-xl font-mono-num text-xs font-bold active:scale-95 transition"
+              style="background: ${owned ? (active ? '#16a34a' : 'var(--surface-panel)') : 'var(--accent-primary)'}; color: ${owned && !active ? 'var(--text-main)' : '#fff'};">
+              ${owned ? (item.type === 'theme' ? (active ? '✓ Ativo' : 'Aplicar') : '✓ Adquirido') : `${item.price} 🪙`}
+            </button>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            if (owned) {
+              if (item.type === 'theme') {
+                applyTheme(item.themeKey);
+                saveEconomy();
+                openStoreModal();
+              }
+              return;
+            }
+            if (state.economy.coins < item.price) {
+              showToast(`⚠️ Resolva mais ilhas para juntar ${item.price} 🪙!`);
+              return;
+            }
+            state.economy.coins -= item.price;
+            state.economy.unlocked.push(item.id);
+            if (item.type === 'theme') applyTheme(item.themeKey);
+            audio.play('coin');
+            saveEconomy();
+            renderHeaderProfile();
+            openStoreModal();
+            showToast(`🎉 "${item.title}" desbloqueado!`);
+          });
+          permBox.appendChild(card);
+        });
+
+        document.getElementById('store-modal').classList.remove('hidden');
+      }
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const box = document.getElementById('toast-box');
+        box.textContent = msg;
+        box.classList.remove('hidden');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => box.classList.add('hidden'), 3300);
+      }
+
+      /* ------------------------------------------------------------------
+         M. EVENTOS E INICIALIZAÇÃO DO APLICATIVO
+         ------------------------------------------------------------------ */
+      function bindEvents() {
+        document.getElementById('btn-open-profile').addEventListener('click', () => openProfileModal(false));
+        document.getElementById('btn-close-profile').addEventListener('click', () => {
+          stopCamera();
+          document.getElementById('profile-modal').classList.add('hidden');
+        });
+        document.getElementById('input-photo-upload').addEventListener('change', async e => {
+          const f = e.target.files && e.target.files[0];
+          if (!f) return;
+          draftAvatar = await compressSquareAvatar(f, false);
+          renderAvatar(document.getElementById('profile-avatar-preview'), draftAvatar);
+        });
+        document.getElementById('btn-start-camera').addEventListener('click', startCamera);
+        document.getElementById('btn-switch-camera').addEventListener('click', () => {
+          facingMode = facingMode === 'user' ? 'environment' : 'user';
+          startCamera();
+        });
+        document.getElementById('btn-snap-photo').addEventListener('click', async () => {
+          draftAvatar = await compressSquareAvatar(document.getElementById('camera-video'), true);
+          renderAvatar(document.getElementById('profile-avatar-preview'), draftAvatar);
+          stopCamera();
+        });
+        document.getElementById('btn-cancel-camera').addEventListener('click', stopCamera);
+        document.getElementById('btn-save-profile').addEventListener('click', () => {
+          const name = document.getElementById('input-player-name').value.trim();
+          state.profile = { name: name || 'Explorador', avatar: draftAvatar };
+          SafeStorage.set(KEY_PROFILE, JSON.stringify(state.profile));
+          stopCamera();
+          renderHeaderProfile();
+          document.getElementById('profile-modal').classList.add('hidden');
+          audio.play('win');
+
+          if (isInitialOnboarding) {
+            isInitialOnboarding = false;
+            openTutorialModal(0);
+          }
+        });
+
+        // Tutorial
+        document.getElementById('btn-open-tutorial-header').addEventListener('click', () => openTutorialModal(0));
+        document.getElementById('btn-close-tutorial').addEventListener('click', () => {
+          document.getElementById('tutorial-modal').classList.add('hidden');
+        });
+        document.getElementById('btn-tut-prev').addEventListener('click', () => {
+          openTutorialModal(state.tutorialStep - 1);
+          audio.play('water');
+        });
+        document.getElementById('btn-tut-next').addEventListener('click', () => {
+          if (state.tutorialStep < TUTORIAL_STEPS.length - 1) {
+            openTutorialModal(state.tutorialStep + 1);
+            audio.play('water');
+          } else {
+            document.getElementById('tutorial-modal').classList.add('hidden');
+            audio.play('win');
+          }
+        });
+
+        // Loja, Tema & Ajustes
+        document.getElementById('btn-open-store').addEventListener('click', openStoreModal);
+        document.getElementById('btn-close-store').addEventListener('click', () => {
+          document.getElementById('store-modal').classList.add('hidden');
+        });
+        document.getElementById('btn-cycle-theme').addEventListener('click', cycleUnlockedTheme);
+
+        document.getElementById('btn-open-settings').addEventListener('click', () => {
+          const audBtn = document.getElementById('btn-settings-audio');
+          audBtn.textContent = audio.muted ? 'MUDO' : 'ATIVADO';
+          audBtn.style.background = audio.muted ? '#64748B' : 'var(--accent-primary)';
+          document.getElementById('settings-modal').classList.remove('hidden');
+        });
+        document.getElementById('btn-close-settings').addEventListener('click', () => {
+          document.getElementById('settings-modal').classList.add('hidden');
+        });
+        document.getElementById('btn-settings-tutorial').addEventListener('click', () => {
+          document.getElementById('settings-modal').classList.add('hidden');
+          openTutorialModal(0);
+        });
+        document.getElementById('btn-settings-audio').addEventListener('click', () => {
+          audio.muted = !audio.muted;
+          const audBtn = document.getElementById('btn-settings-audio');
+          audBtn.textContent = audio.muted ? 'MUDO' : 'ATIVADO';
+          audBtn.style.background = audio.muted ? '#64748B' : 'var(--accent-primary)';
+          if (!audio.muted) audio.play('water');
+        });
+        document.getElementById('btn-settings-theme').addEventListener('click', cycleUnlockedTheme);
+        document.getElementById('btn-settings-profile').addEventListener('click', () => {
+          document.getElementById('settings-modal').classList.add('hidden');
+          openProfileModal(false);
+        });
+
+        // Níveis & Tabuleiro
+        document.getElementById('difficulty-select').addEventListener('change', e => {
+          state.difficulty = e.target.value;
+          state.isDaily = false;
+          generateHitoriPuzzle();
+        });
+        document.getElementById('btn-daily-challenge').addEventListener('click', () => {
+          state.isDaily = true;
+          generateHitoriPuzzle();
+        });
+        document.getElementById('btn-new-puzzle').addEventListener('click', () => {
+          generateHitoriPuzzle();
+        });
+
+        document.getElementById('btn-toggle-autoprotect').addEventListener('click', () => {
+          state.autoProtect = !state.autoProtect;
+          document.getElementById('autoprotect-label').textContent = state.autoProtect ? 'ON' : 'OFF';
+          document.getElementById('btn-toggle-autoprotect').style.background = state.autoProtect
+            ? 'var(--accent-secondary)'
+            : '#64748B';
+          audio.play('water');
+        });
+
+        document.getElementById('btn-undo-move').addEventListener('click', () => {
+          if (state.history.length === 0) {
+            showToast('Nada para desfazer.');
+            return;
+          }
+          state.cellStates = state.history.pop();
+          audio.play('clear');
+          renderBoard(false);
+        });
+
+        document.getElementById('btn-reset-board').addEventListener('click', () => {
+          pushUndoSnapshot();
+          const N = state.size;
+          for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+              if (!state.lockedCells[r][c]) state.cellStates[r][c] = CELL_NEUTRAL;
+            }
+          }
+          state.celebratedLines.clear();
+          audio.play('clear');
+          renderBoard(false);
+        });
+
+        // Poderes
+        document.getElementById('btn-power-hint').addEventListener('click', useCellHintPower);
+        document.getElementById('btn-power-shield').addEventListener('click', useGlobalShieldPower);
+        document.getElementById('btn-power-radar').addEventListener('click', useIslandRadarPower);
+
+        // Stickers
+        document.getElementById('btn-toggle-stickers').addEventListener('click', () => {
+          document.getElementById('sticker-drawer').classList.toggle('hidden');
+          audio.play('water');
+        });
+        document.getElementById('btn-clear-stickers').addEventListener('click', () => {
+          document.getElementById('placed-stickers-layer').innerHTML = '';
+          audio.play('clear');
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        setupPWA();
+
+        const p = SafeStorage.get(KEY_PROFILE);
+        if (p) { try { state.profile = JSON.parse(p); } catch (_) {} }
+        const ec = SafeStorage.get(KEY_ECONOMY);
+        if (ec) {
+          try {
+            const parsed = JSON.parse(ec);
+            state.economy = {
+              ...state.economy,
+              ...parsed,
+              inventory: { ...state.economy.inventory, ...(parsed.inventory || {}) }
+            };
+          } catch (_) {}
+        }
+
+        applyTheme(state.economy.activeTheme || 'ukiyoe');
+        updateEconomyUI();
+        renderHeaderProfile();
+
+        setupStickers();
+        bindEvents();
+        generateHitoriPuzzle();
+
+        if (!state.profile) {
+          openProfileModal(true);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
